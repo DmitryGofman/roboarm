@@ -162,8 +162,8 @@ export default function Telemetry({
               REACH <span>{reach.toFixed(1)}m</span>
               <input
                 type="range"
-                min="0.3"
-                max="2.6"
+                min="0.4"
+                max="2.85"
                 step="0.05"
                 value={reach}
                 onChange={(e) => onReach(+e.target.value)}

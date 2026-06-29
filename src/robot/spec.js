@@ -14,5 +14,16 @@ export const JOINTS = [
 export const L = { base: 0.78, upperArm: 1.28, foreArm: 1.14, wrist: 0.2 };
 export const REACH = L.upperArm + L.foreArm + L.wrist;
 
+// Kinematic parameters that MUST match the RobotArm geometry so the IK target
+// (green dot) lands on the actual end-effector. The shoulder pitch pivot (j2)
+// sits 0.46 above the base turret; the forearm carries a 0.28 wrist-tube offset
+// plus the 0.20 flange, all collinear when the wrist bend (a5) is 0.
+export const KIN = {
+  shoulderY: L.base + 0.46, // 1.24  height of the shoulder pitch pivot
+  link1: L.upperArm, // 1.28  shoulder -> elbow
+  link2: L.foreArm + 0.28 + L.wrist, // 1.62  elbow -> flange (wrist straight)
+};
+export const MAXREACH = KIN.link1 + KIN.link2; // 2.90
+
 export const clampDeg = (v, j) => Math.max(j.min, Math.min(j.max, v));
 export const d2r = (d) => (d * Math.PI) / 180;

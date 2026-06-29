@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { L, REACH, d2r } from "./spec.js";
+import { L, KIN, MAXREACH, d2r } from "./spec.js";
 
 // three.js scene graph. The arm is a nested group chain (one group per joint),
 // which is the integration seam for real CAD meshes later: drop a mesh onto the
@@ -54,7 +54,7 @@ export default function RobotArm({ state }) {
 
     scene.add(new THREE.GridHelper(18, 36, 0x2a3d52, 0x18222e));
     const env = new THREE.Mesh(
-      new THREE.SphereGeometry(REACH, 28, 18),
+      new THREE.SphereGeometry(MAXREACH, 28, 18),
       new THREE.MeshBasicMaterial({
         color: 0x2e9bff,
         transparent: true,
@@ -62,7 +62,7 @@ export default function RobotArm({ state }) {
         wireframe: true,
       })
     );
-    env.position.y = L.base;
+    env.position.y = KIN.shoulderY;
     scene.add(env);
 
     const mat = (c) =>
@@ -198,7 +198,7 @@ export default function RobotArm({ state }) {
     resize();
 
     let raf = 0;
-    const off = new THREE.Vector3(0, L.base, 0);
+    const off = new THREE.Vector3(0, KIN.shoulderY, 0);
     function tick() {
       raf = requestAnimationFrame(tick);
       const a = state.angles;
@@ -208,7 +208,9 @@ export default function RobotArm({ state }) {
       J[3].rotation.y = d2r(a[3]);
       J[4].rotation.z = d2r(a[4]);
       J[5].rotation.y = d2r(a[5]);
-      target.position.copy(state.target).add(off);
+      // green dot = the ACTUAL flange (end-effector), read from the posed model,
+      // so it always sits exactly on the arm tip regardless of IK reach limits.
+      j6.getWorldPosition(target.position);
       const aim = state.mode === "aim";
       // ghost (phone) is meaningful in MOVE mode; the aim ray replaces it in AIM
       ghost.visible = !aim;
@@ -216,7 +218,7 @@ export default function RobotArm({ state }) {
       if (state.quat) ghost.quaternion.copy(state.quat);
       aimRay.visible = aim;
       if (aim && state.aimDir) {
-        const tip = state.aimDir.clone().multiplyScalar(REACH).add(off);
+        const tip = state.aimDir.clone().multiplyScalar(MAXREACH).add(off);
         rayGeom.setFromPoints([off, tip]);
       }
       // gentle auto-orbit until live, so the arm is clearly visible on load
