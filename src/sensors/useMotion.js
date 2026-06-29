@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { createIntegrator } from "./integrate.js";
+import { createAcoustic } from "./acoustic.js";
 import { solveIK } from "../robot/kinematics.js";
 
 const HOME = new THREE.Vector3(1.6, 1.0, 0);
@@ -17,6 +18,7 @@ const AIM_AXIS = new THREE.Vector3(0, 1, 0);
 // live listener — earlier this tore the listener down the instant start() ran.
 export function useMotion(state, onTelemetry) {
   const integ = useRef(createIntegrator());
+  const acoustic = useRef(createAcoustic());
   const lastBuzz = useRef(0);
   const samples = useRef(0);
 
@@ -37,6 +39,16 @@ export function useMotion(state, onTelemetry) {
         state.hasData = true;
         samples.current += 1;
 
+        // refresh the acoustic Doppler metric (if running)
+        const ac = acoustic.current;
+        ac.update();
+        const acMotion = ac.running ? ac.motion : null;
+        // acoustic drift-reset: when sound says "still", zero the velocity so
+        // integrated position stops creeping (a cross-check on the IMU's ZUPT).
+        if (state.mode !== "aim" && ac.running && ac.motion < 0.12) {
+          it.zeroVel();
+        }
+
         // HOLD / clutch: keep the feed alive and the ghost following, but
         // freeze the arm so the phone can be repositioned without driving it.
         if (state.paused) {
@@ -54,6 +66,7 @@ export function useMotion(state, onTelemetry) {
             samples: samples.current,
             hz,
             heading: it.heading,
+            acoustic: acMotion,
             paused: true,
           });
           return;
@@ -108,6 +121,7 @@ export function useMotion(state, onTelemetry) {
           samples: samples.current,
           hz,
           heading: it.heading,
+          acoustic: acMotion,
         });
       },
     };
@@ -116,9 +130,11 @@ export function useMotion(state, onTelemetry) {
   // detach only on unmount
   useEffect(() => {
     const h = handlers.current;
+    const ac = acoustic.current;
     return () => {
       window.removeEventListener("devicemotion", h.onMotion);
       window.removeEventListener("deviceorientation", h.onOrient);
+      ac.stop();
     };
   }, []);
 
@@ -160,5 +176,15 @@ export function useMotion(state, onTelemetry) {
     integ.current.recenter();
   }
 
-  return { start, recenter };
+  // toggle the acoustic Doppler sensor; returns a status message ("" on success)
+  async function toggleAcoustic() {
+    const ac = acoustic.current;
+    if (ac.running) {
+      ac.stop();
+      return "";
+    }
+    return ac.start();
+  }
+
+  return { start, recenter, toggleAcoustic };
 }

@@ -39,6 +39,8 @@ export default function Telemetry({
   onMode,
   reach,
   onReach,
+  acousticOn,
+  onAcoustic,
 }) {
   const aim = mode === "aim";
   const d = t || {
@@ -148,6 +150,13 @@ export default function Telemetry({
         <button onClick={onResetView} style={btn(false)}>
           RESET VIEW
         </button>
+        <button
+          onClick={onAcoustic}
+          style={btn(acousticOn)}
+          title="Experimental: ~19.5kHz Doppler motion sensor (asks for mic)"
+        >
+          {acousticOn ? "🔊 SONAR: ON" : "🔊 SONAR"}
+        </button>
         <label
           style={{
             display: "flex",
@@ -213,6 +222,15 @@ export default function Telemetry({
             d.heading == null ? "no compass" : `${Math.round(d.heading)}° ${compassPoint(d.heading)}`
           }
           color={d.heading == null ? C.dim : C.txt}
+        />
+        <Row
+          label="SONAR"
+          value={
+            d.acoustic == null
+              ? "off"
+              : `${d.acoustic < 0.12 ? "STILL" : "MOVING"} ${Math.round(d.acoustic * 100)}%`
+          }
+          color={d.acoustic == null ? C.dim : d.acoustic < 0.12 ? C.good : C.accent}
         />
       </div>
       <div style={{ marginTop: 6, color: C.dim }}>

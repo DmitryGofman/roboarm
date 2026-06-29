@@ -44,6 +44,7 @@ export default function App() {
   const [invert, setInvert] = useState(false);
   const [mode, setMode] = useState("aim");
   const [reach, setReachState] = useState(1.6);
+  const [acousticOn, setAcousticOn] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [msg, setMsg] = useState("");
 
@@ -56,7 +57,7 @@ export default function App() {
     setTele(snap);
   };
 
-  const { start, recenter } = useMotion(state, onTelemetry);
+  const { start, recenter, toggleAcoustic } = useMotion(state, onTelemetry);
 
   const onScale = (v) => {
     state.scale = v;
@@ -90,6 +91,12 @@ export default function App() {
   const onReach = (v) => {
     state.reach = v;
     setReachState(v);
+  };
+
+  const onAcoustic = async () => {
+    const m = await toggleAcoustic();
+    if (m) setMsg(m);
+    setAcousticOn((v) => !v);
   };
 
   const onResetView = () => state.resetView?.();
@@ -257,6 +264,8 @@ export default function App() {
           onMode={onMode}
           reach={reach}
           onReach={onReach}
+          acousticOn={acousticOn}
+          onAcoustic={onAcoustic}
         />
       )}
     </>
