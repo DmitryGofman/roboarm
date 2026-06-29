@@ -29,14 +29,34 @@ one of:
 It also must be its **own origin** — iOS blocks motion permission inside iframe
 sandboxes.
 
-## Build & deploy
+## Deploy (GitHub Pages — automatic)
+
+This repo ships a GitHub Actions workflow (`.github/workflows/deploy.yml`) that
+builds and publishes to **GitHub Pages** on every push. You get a permanent
+`https://` URL — exactly what iOS needs for motion sensors.
+
+**One-time setup:** in the GitHub repo, go to **Settings → Pages → Build and
+deployment → Source** and select **GitHub Actions**. (You only do this once.)
+
+After that, every push triggers a deploy. The site lands at:
+
+```
+https://<your-github-username>.github.io/roboarm/
+```
+
+Open **that** URL in iPhone Safari and tap **GRANT SENSORS & START**. Watch the
+deploy run under the repo's **Actions** tab; first deploy takes ~1–2 min.
+
+### Other hosts / local build
 
 ```bash
 npm run build      # outputs static site to dist/
 npm run preview    # serve the production build locally
 ```
 
-Deploy `dist/` to any static HTTPS host — Netlify, Vercel, or GitHub Pages.
+`dist/` deploys to any static HTTPS host (Netlify, Vercel). Note the build sets
+base path `/roboarm/` for GitHub Pages — if you host at a domain root instead,
+adjust `base` in `vite.config.js`.
 
 ## Project layout
 
