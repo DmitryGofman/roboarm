@@ -8,61 +8,76 @@ const HOME = new THREE.Vector3(1.6, 1.0, 0);
 // Owns the IMU permission flow + event listeners, drives the integrator and IK,
 // and writes results into the shared `state` object that RobotArm renders from.
 // `onTelemetry` is called on each motion frame with a snapshot for the UI.
+//
+// The sensor handlers are created ONCE (stable refs) and attached imperatively
+// in start(). The teardown effect has empty deps so a re-render never removes a
+// live listener — earlier this tore the listener down the instant start() ran.
 export function useMotion(state, onTelemetry) {
   const integ = useRef(createIntegrator());
   const lastBuzz = useRef(0);
+  const samples = useRef(0);
 
-  // keep the shared quat reference pointed at the integrator's quat
-  useEffect(() => {
-    state.quat = integ.current.quat;
-  }, [state]);
+  // keep the latest onTelemetry reachable without re-creating handlers
+  const onTeleRef = useRef(onTelemetry);
+  onTeleRef.current = onTelemetry;
 
-  useEffect(() => {
+  // point the shared quat reference at the integrator's quat once
+  if (state.quat == null) state.quat = integ.current.quat;
+
+  // stable handlers, built exactly once
+  const handlers = useRef(null);
+  if (handlers.current === null) {
     const it = integ.current;
+    handlers.current = {
+      onOrient: (e) => it.setOrientation(e),
+      onMotion: (e) => {
+        state.hasData = true;
+        samples.current += 1;
+        const accW = it.step(e);
+        if (!accW) return;
 
-    const onOrient = (e) => it.setOrientation(e);
+        state.target.copy(HOME).add(it.pos.clone().multiplyScalar(state.scale));
+        const ik = solveIK(
+          state.target.x,
+          state.target.y,
+          state.target.z,
+          state.angles
+        );
+        state.angles = ik.angles;
 
-    const onMotion = (e) => {
-      state.hasData = true;
-      const accW = it.step(e);
-      if (!accW) return;
+        if (
+          !ik.reachable &&
+          navigator.vibrate &&
+          performance.now() - lastBuzz.current > 350
+        ) {
+          navigator.vibrate(40);
+          lastBuzz.current = performance.now();
+        }
 
-      state.target.copy(HOME).add(it.pos.clone().multiplyScalar(state.scale));
-      const ik = solveIK(
-        state.target.x,
-        state.target.y,
-        state.target.z,
-        state.angles
-      );
-      state.angles = ik.angles;
-
-      if (
-        !ik.reachable &&
-        navigator.vibrate &&
-        performance.now() - lastBuzz.current > 350
-      ) {
-        navigator.vibrate(40);
-        lastBuzz.current = performance.now();
-      }
-
-      onTelemetry?.({
-        quat: it.quat.toArray(),
-        acc: accW.toArray(),
-        vel: it.vel.toArray(),
-        pos: it.pos.toArray(),
-        zupt: it.zupt,
-        reachable: ik.reachable,
-        angles: ik.angles,
-      });
+        const hz = e.interval && e.interval > 0 ? Math.round(1 / e.interval) : 0;
+        onTeleRef.current?.({
+          quat: it.quat.toArray(),
+          acc: accW.toArray(),
+          vel: it.vel.toArray(),
+          pos: it.pos.toArray(),
+          zupt: it.zupt,
+          reachable: ik.reachable,
+          angles: ik.angles,
+          samples: samples.current,
+          hz,
+        });
+      },
     };
+  }
 
-    state._onMotion = onMotion;
-    state._onOrient = onOrient;
+  // detach only on unmount
+  useEffect(() => {
+    const h = handlers.current;
     return () => {
-      window.removeEventListener("devicemotion", onMotion);
-      window.removeEventListener("deviceorientation", onOrient);
+      window.removeEventListener("devicemotion", h.onMotion);
+      window.removeEventListener("deviceorientation", h.onOrient);
     };
-  }, [state, onTelemetry]);
+  }, []);
 
   // Returns a status message (empty on success) so the caller can surface it.
   async function start() {
@@ -89,8 +104,8 @@ export function useMotion(state, onTelemetry) {
       if (typeof DeviceMotionEvent === "undefined") {
         msg = "No motion sensors here — open on a phone to drive the arm.";
       }
-      window.addEventListener("devicemotion", state._onMotion);
-      window.addEventListener("deviceorientation", state._onOrient);
+      window.addEventListener("devicemotion", handlers.current.onMotion);
+      window.addEventListener("deviceorientation", handlers.current.onOrient);
       state.live = true;
       return msg;
     } catch (err) {

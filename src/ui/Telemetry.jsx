@@ -29,6 +29,8 @@ export default function Telemetry({ t, scale, onScale, onRecenter }) {
     zupt: false,
     reachable: true,
     angles: [0, 0, 0, 0, 0, 0],
+    samples: 0,
+    hz: 0,
   };
 
   return (
@@ -38,9 +40,27 @@ export default function Telemetry({ t, scale, onScale, onRecenter }) {
         borderTop: `1px solid ${C.line}`,
         background: C.panel,
         padding: "10px 14px",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
         fontSize: 11,
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 6,
+          paddingBottom: 6,
+          borderBottom: `1px solid ${C.line}`,
+        }}
+      >
+        <span style={{ color: C.dim }}>SENSOR FEED</span>
+        <span style={{ color: d.samples > 0 ? C.good : C.warn }}>
+          {d.samples > 0
+            ? `● ${d.hz} Hz · ${d.samples} samples`
+            : "○ waiting for motion…"}
+        </span>
+      </div>
       <div
         style={{
           display: "grid",
