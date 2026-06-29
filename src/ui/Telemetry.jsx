@@ -88,33 +88,7 @@ export default function Telemetry({
       </div>
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "4px 18px",
-        }}
-      >
-        <Row label="QUAT" value={fmt(d.quat)} />
-        <Row label="ACC m/s²" value={fmt(d.acc)} />
-        <Row label="VEL m/s" value={fmt(d.vel)} />
-        <Row label="POS m" value={fmt(d.pos)} />
-        <Row
-          label="ZUPT"
-          value={d.zupt ? "ACTIVE (vel=0)" : "—"}
-          color={d.zupt ? C.good : C.txt}
-        />
-        <Row
-          label="IK"
-          value={d.reachable ? "SOLVED" : "NO SOLUTION"}
-          color={d.reachable ? C.good : C.warn}
-        />
-      </div>
-      <div style={{ marginTop: 6, color: C.dim }}>
-        JOINTS°{"  "}
-        {d.angles.map((a, i) => `J${i + 1}:${a.toFixed(0)}`).join(" ")}
-      </div>
-      <div
-        style={{
-          marginTop: 10,
+          marginBottom: 10,
           display: "flex",
           gap: 8,
           alignItems: "center",
@@ -150,6 +124,32 @@ export default function Telemetry({
             style={{ accentColor: C.accent }}
           />
         </label>
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "4px 18px",
+        }}
+      >
+        <Row label="QUAT" value={fmt(d.quat)} />
+        <Row label="ACC m/s²" value={fmt(d.acc)} />
+        <Row label="VEL m/s" value={fmt(d.vel)} />
+        <Row label="POS m" value={fmt(d.pos)} />
+        <Row
+          label="ZUPT"
+          value={d.zupt ? "ACTIVE (vel=0)" : "—"}
+          color={d.zupt ? C.good : C.txt}
+        />
+        <Row
+          label="IK"
+          value={d.reachable ? "SOLVED" : "NO SOLUTION"}
+          color={d.reachable ? C.good : C.warn}
+        />
+      </div>
+      <div style={{ marginTop: 6, color: C.dim }}>
+        JOINTS°{"  "}
+        {d.angles.map((a, i) => `J${i + 1}:${a.toFixed(0)}`).join(" ")}
       </div>
     </div>
   );

@@ -35,6 +35,7 @@ export default function App() {
   const [scale, setScaleState] = useState(6);
   const [live, setLive] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
   const [msg, setMsg] = useState("");
 
   // throttle telemetry React updates to ~20 Hz; the 3D arm still runs at 60.
@@ -100,6 +101,21 @@ export default function App() {
         >
           {live ? "● LIVE" : "○ IDLE"}
         </span>
+        <button
+          onClick={() => setPanelOpen((v) => !v)}
+          style={{
+            background: panelOpen ? C.accent : "transparent",
+            color: panelOpen ? "#0a0e14" : C.txt,
+            border: `1px solid ${panelOpen ? C.accent : C.line}`,
+            padding: "5px 10px",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 700,
+          }}
+        >
+          {panelOpen ? "▾ PANEL" : "▸ PANEL"}
+        </button>
       </div>
 
       <div style={{ flex: 1 }} />
@@ -192,15 +208,17 @@ export default function App() {
         </div>
       )}
 
-      <Telemetry
-        t={tele}
-        scale={scale}
-        onScale={onScale}
-        onRecenter={recenter}
-        paused={paused}
-        onHold={onHold}
-        onResetView={onResetView}
-      />
+      {panelOpen && (
+        <Telemetry
+          t={tele}
+          scale={scale}
+          onScale={onScale}
+          onRecenter={recenter}
+          paused={paused}
+          onHold={onHold}
+          onResetView={onResetView}
+        />
+      )}
     </>
   );
 }
