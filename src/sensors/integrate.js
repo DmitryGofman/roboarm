@@ -6,6 +6,12 @@ import * as THREE from "three";
 // on world accel, ZUPT (zero-velocity update), and a mild velocity decay.
 // Good for short (3-5 s) gestures.
 
+// -90° about X: maps the device's screen-out (+Z) axis to world-up (+Y) so a
+// phone lying flat on its back reads as parallel to the ground (and its screen
+// faces up). This is the standard W3C-deviceorientation → three.js correction;
+// it fixes both the on-screen ghost and the accel world-frame rotation.
+const Q_FLAT = new THREE.Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2);
+
 export function createIntegrator() {
   const quat = new THREE.Quaternion();
   const vel = new THREE.Vector3();
@@ -19,6 +25,7 @@ export function createIntegrator() {
     const b = ((e.beta || 0) * Math.PI) / 180;
     const g = ((e.gamma || 0) * Math.PI) / 180;
     quat.setFromEuler(new THREE.Euler(b, a, -g, "YXZ"));
+    quat.multiply(Q_FLAT);
   }
 
   // Advance the position estimate from one DeviceMotion event.
@@ -32,7 +39,8 @@ export function createIntegrator() {
       ay = e.acceleration.y;
       az = e.acceleration.z;
     } else if (e.accelerationIncludingGravity) {
-      const gv = new THREE.Vector3(0, 0, 9.81).applyQuaternion(
+      // gravity reaction in the (now corrected) world frame is world-up * g
+      const gv = new THREE.Vector3(0, 9.81, 0).applyQuaternion(
         quat.clone().invert()
       );
       ax = (e.accelerationIncludingGravity.x || 0) - gv.x;
@@ -71,6 +79,11 @@ export function createIntegrator() {
     hp.set(0, 0, 0);
   }
 
+  // freeze drift without moving the origin (used while tracking is held)
+  function zeroVel() {
+    vel.set(0, 0, 0);
+  }
+
   return {
     quat,
     vel,
@@ -78,6 +91,7 @@ export function createIntegrator() {
     setOrientation,
     step,
     recenter,
+    zeroVel,
     get still() {
       return still;
     },

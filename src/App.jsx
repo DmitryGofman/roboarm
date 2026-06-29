@@ -25,6 +25,7 @@ export default function App() {
       quat: null,
       scale: 6,
       live: false,
+      paused: false,
       hasData: false,
     }),
     []
@@ -33,6 +34,7 @@ export default function App() {
   const [tele, setTele] = useState(null);
   const [scale, setScaleState] = useState(6);
   const [live, setLive] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [msg, setMsg] = useState("");
 
   // throttle telemetry React updates to ~20 Hz; the 3D arm still runs at 60.
@@ -50,6 +52,14 @@ export default function App() {
     state.scale = v;
     setScaleState(v);
   };
+
+  const onHold = () => {
+    const v = !paused;
+    state.paused = v;
+    setPaused(v);
+  };
+
+  const onResetView = () => state.resetView?.();
 
   const onStart = async () => {
     setMsg("");
@@ -182,7 +192,15 @@ export default function App() {
         </div>
       )}
 
-      <Telemetry t={tele} scale={scale} onScale={onScale} onRecenter={recenter} />
+      <Telemetry
+        t={tele}
+        scale={scale}
+        onScale={onScale}
+        onRecenter={recenter}
+        paused={paused}
+        onHold={onHold}
+        onResetView={onResetView}
+      />
     </>
   );
 }

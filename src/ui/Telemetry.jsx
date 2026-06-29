@@ -19,8 +19,16 @@ function Row({ label, value, color }) {
   );
 }
 
-// quat/acc/vel/pos/ZUPT/IK/joints readout + recenter & scale controls.
-export default function Telemetry({ t, scale, onScale, onRecenter }) {
+// quat/acc/vel/pos/ZUPT/IK/joints readout + hold / recenter / view controls.
+export default function Telemetry({
+  t,
+  scale,
+  onScale,
+  onRecenter,
+  paused,
+  onHold,
+  onResetView,
+}) {
   const d = t || {
     quat: [0, 0, 0, 1],
     acc: [0, 0, 0],
@@ -32,6 +40,17 @@ export default function Telemetry({ t, scale, onScale, onRecenter }) {
     samples: 0,
     hz: 0,
   };
+
+  const btn = (active) => ({
+    background: active ? C.accent : "transparent",
+    color: active ? "#0a0e14" : C.txt,
+    border: `1px solid ${active ? C.accent : C.line}`,
+    padding: "6px 12px",
+    borderRadius: 4,
+    cursor: "pointer",
+    fontSize: 11,
+    fontWeight: active ? 700 : 400,
+  });
 
   return (
     <div
@@ -55,8 +74,14 @@ export default function Telemetry({ t, scale, onScale, onRecenter }) {
         }}
       >
         <span style={{ color: C.dim }}>SENSOR FEED</span>
-        <span style={{ color: d.samples > 0 ? C.good : C.warn }}>
-          {d.samples > 0
+        <span
+          style={{
+            color: paused ? C.accent : d.samples > 0 ? C.good : C.warn,
+          }}
+        >
+          {paused
+            ? `❚❚ HOLD · ${d.hz} Hz`
+            : d.samples > 0
             ? `● ${d.hz} Hz · ${d.samples} samples`
             : "○ waiting for motion…"}
         </span>
@@ -91,27 +116,28 @@ export default function Telemetry({ t, scale, onScale, onRecenter }) {
         style={{
           marginTop: 10,
           display: "flex",
-          gap: 12,
+          gap: 8,
           alignItems: "center",
           flexWrap: "wrap",
         }}
       >
-        <button
-          onClick={onRecenter}
-          style={{
-            background: "transparent",
-            color: C.txt,
-            border: `1px solid ${C.line}`,
-            padding: "6px 12px",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontSize: 11,
-          }}
-        >
-          RECENTER (zero drift)
+        <button onClick={onHold} style={btn(paused)}>
+          {paused ? "▶ RESUME" : "❚❚ HOLD"}
+        </button>
+        <button onClick={onRecenter} style={btn(false)}>
+          RECENTER
+        </button>
+        <button onClick={onResetView} style={btn(false)}>
+          RESET VIEW
         </button>
         <label
-          style={{ display: "flex", gap: 8, alignItems: "center", color: C.dim }}
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            color: C.dim,
+            marginLeft: "auto",
+          }}
         >
           SCALE ×<span>{scale}</span>
           <input

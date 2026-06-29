@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { L, REACH, d2r } from "./spec.js";
 
 // three.js scene graph. The arm is a nested group chain (one group per joint),
@@ -24,6 +25,20 @@ export default function RobotArm({ state }) {
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     mount.appendChild(renderer.domElement);
     Object.assign(renderer.domElement.style, { position: "absolute", inset: "0" });
+
+    // Orbit / pinch-zoom camera. Auto-rotates until the teleop goes live, then
+    // hands control to the user (drag to rotate, pinch / wheel to zoom).
+    const controls = new OrbitControls(cam, renderer.domElement);
+    controls.target.set(0, 1.4, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.enablePan = false;
+    controls.minDistance = 2.2;
+    controls.maxDistance = 24;
+    controls.autoRotateSpeed = 0.8;
+    controls.update();
+    controls.saveState(); // capture the initial view for RESET VIEW
+    state.resetView = () => controls.reset();
 
     // lighting
     scene.add(new THREE.HemisphereLight(0x9fc0ff, 0x202a36, 1.1));
@@ -170,7 +185,6 @@ export default function RobotArm({ state }) {
     window.addEventListener("resize", resize);
     resize();
 
-    let spin = 0;
     let raf = 0;
     const off = new THREE.Vector3(0, L.base, 0);
     function tick() {
@@ -186,11 +200,8 @@ export default function RobotArm({ state }) {
       ghost.position.copy(state.target).add(off);
       if (state.quat) ghost.quaternion.copy(state.quat);
       // gentle auto-orbit until live, so the arm is clearly visible on load
-      if (!state.live) {
-        spin += 0.0025;
-        cam.position.set(Math.cos(spin) * 7, 3.4, Math.sin(spin) * 7);
-        cam.lookAt(0, 1.4, 0);
-      }
+      controls.autoRotate = !state.live;
+      controls.update();
       renderer.render(scene, cam);
     }
     tick();
@@ -198,6 +209,8 @@ export default function RobotArm({ state }) {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
+      controls.dispose();
+      delete state.resetView;
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);

@@ -33,6 +33,28 @@ export function useMotion(state, onTelemetry) {
       onMotion: (e) => {
         state.hasData = true;
         samples.current += 1;
+
+        // HOLD / clutch: keep the feed alive and the ghost following, but
+        // freeze the arm so the phone can be repositioned without driving it.
+        if (state.paused) {
+          it.zeroVel();
+          const hz =
+            e.interval && e.interval > 0 ? Math.round(1 / e.interval) : 0;
+          onTeleRef.current?.({
+            quat: it.quat.toArray(),
+            acc: [0, 0, 0],
+            vel: it.vel.toArray(),
+            pos: it.pos.toArray(),
+            zupt: it.zupt,
+            reachable: true,
+            angles: state.angles,
+            samples: samples.current,
+            hz,
+            paused: true,
+          });
+          return;
+        }
+
         const accW = it.step(e);
         if (!accW) return;
 
