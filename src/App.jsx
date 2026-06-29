@@ -15,57 +15,6 @@ const C = {
   warn: "#ff4757",
 };
 
-// Small heading indicator. The dial rotates by -heading so the red N needle
-// always points to true (magnetic) north relative to the phone's facing.
-function Compass({ heading }) {
-  const has = heading != null;
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: "calc(env(safe-area-inset-top, 0px) + 60px)",
-        left: 12,
-        width: 64,
-        height: 64,
-        pointerEvents: "none",
-        borderRadius: "50%",
-        background: "rgba(10,14,20,.55)",
-        border: `1px solid ${C.line}`,
-        backdropFilter: "blur(4px)",
-      }}
-    >
-      <svg viewBox="-50 -50 100 100" width="64" height="64">
-        <g
-          style={{
-            transform: has ? `rotate(${-heading}deg)` : "none",
-            transition: "transform 0.12s linear",
-          }}
-        >
-          {/* N needle (red), S needle (grey) */}
-          <polygon points="0,-34 7,4 -7,4" fill={C.warn} />
-          <polygon points="0,34 7,-4 -7,-4" fill="#4a5663" />
-          <circle r="3.5" fill={C.txt} />
-        </g>
-        <text x="0" y="-37" fill={C.txt} fontSize="13" textAnchor="middle" fontFamily="monospace">
-          N
-        </text>
-      </svg>
-      <div
-        style={{
-          position: "absolute",
-          bottom: -16,
-          width: "100%",
-          textAlign: "center",
-          fontSize: 10,
-          color: has ? C.txt : C.dim,
-        }}
-      >
-        {has ? `${Math.round(heading)}°` : "no mag"}
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
   // shared mutable state the render loop reads from (kept out of React state
   // so 60 Hz updates don't trigger re-renders).
@@ -79,6 +28,9 @@ export default function App() {
       paused: false,
       stabilize: true,
       invert: false,
+      mode: "aim", // "aim" (orientation + reach) | "move" (integrated position)
+      reach: 1.6, // metres along the aim vector
+      aimDir: new THREE.Vector3(1, 0, 0),
       hasData: false,
     }),
     []
@@ -90,6 +42,8 @@ export default function App() {
   const [paused, setPaused] = useState(false);
   const [stabilize, setStabilize] = useState(true);
   const [invert, setInvert] = useState(false);
+  const [mode, setMode] = useState("aim");
+  const [reach, setReachState] = useState(1.6);
   const [panelOpen, setPanelOpen] = useState(true);
   const [msg, setMsg] = useState("");
 
@@ -125,6 +79,17 @@ export default function App() {
     const v = !invert;
     state.invert = v;
     setInvert(v);
+  };
+
+  const onMode = () => {
+    const v = mode === "aim" ? "move" : "aim";
+    state.mode = v;
+    setMode(v);
+  };
+
+  const onReach = (v) => {
+    state.reach = v;
+    setReachState(v);
   };
 
   const onResetView = () => state.resetView?.();
@@ -186,8 +151,6 @@ export default function App() {
       </div>
 
       <div style={{ flex: 1 }} />
-
-      {live && <Compass heading={tele?.heading} />}
 
       {/* out-of-reach badge */}
       {!reachable && (
@@ -290,6 +253,10 @@ export default function App() {
           onStabilize={onStabilize}
           invert={invert}
           onInvert={onInvert}
+          mode={mode}
+          onMode={onMode}
+          reach={reach}
+          onReach={onReach}
         />
       )}
     </>

@@ -175,6 +175,18 @@ export default function RobotArm({ state }) {
     );
     scene.add(ghost);
 
+    // AIM mode: a ray from the shoulder along the phone's pointing direction;
+    // the green target rides along it at the slider's reach distance.
+    const rayGeom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+    ]);
+    const aimRay = new THREE.Line(
+      rayGeom,
+      new THREE.LineBasicMaterial({ color: 0x33ff99, transparent: true, opacity: 0.5 })
+    );
+    scene.add(aimRay);
+
     function resize() {
       const w = mount.clientWidth,
         h = mount.clientHeight;
@@ -197,8 +209,16 @@ export default function RobotArm({ state }) {
       J[4].rotation.z = d2r(a[4]);
       J[5].rotation.y = d2r(a[5]);
       target.position.copy(state.target).add(off);
+      const aim = state.mode === "aim";
+      // ghost (phone) is meaningful in MOVE mode; the aim ray replaces it in AIM
+      ghost.visible = !aim;
       ghost.position.copy(state.target).add(off);
       if (state.quat) ghost.quaternion.copy(state.quat);
+      aimRay.visible = aim;
+      if (aim && state.aimDir) {
+        const tip = state.aimDir.clone().multiplyScalar(REACH).add(off);
+        rayGeom.setFromPoints([off, tip]);
+      }
       // gentle auto-orbit until live, so the arm is clearly visible on load
       controls.autoRotate = !state.live;
       controls.update();
@@ -211,6 +231,7 @@ export default function RobotArm({ state }) {
       window.removeEventListener("resize", resize);
       controls.dispose();
       delete state.resetView;
+      rayGeom.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);

@@ -4,6 +4,9 @@ import { createIntegrator } from "./integrate.js";
 import { solveIK } from "../robot/kinematics.js";
 
 const HOME = new THREE.Vector3(1.6, 1.0, 0);
+// Phone's local +Y (top edge) is the "pointing" axis in AIM mode — point the
+// top of the phone where you want the end-effector to go.
+const AIM_AXIS = new THREE.Vector3(0, 1, 0);
 
 // Owns the IMU permission flow + event listeners, drives the integrator and IK,
 // and writes results into the shared `state` object that RobotArm renders from.
@@ -59,16 +62,23 @@ export function useMotion(state, onTelemetry) {
         const accW = it.step(e, state.stabilize !== false);
         if (!accW) return;
 
-        // map integrated phone displacement to the IK target. INVERT flips the
-        // horizontal plane so the arm follows the same direction you move.
-        const s = state.scale;
-        const f = state.invert ? -1 : 1;
-        const p = it.pos;
-        state.target.set(
-          HOME.x + p.x * s * f,
-          HOME.y + p.y * s,
-          HOME.z + p.z * s * f
-        );
+        if (state.mode === "aim") {
+          // AIM: phone orientation is a unit direction; the slider sets how far
+          // along it the end-effector sits. Drift-free (orientation only).
+          state.aimDir.copy(AIM_AXIS).applyQuaternion(it.quat).normalize();
+          state.target.copy(state.aimDir).multiplyScalar(state.reach);
+        } else {
+          // MOVE: integrated phone displacement -> IK target. INVERT flips the
+          // horizontal plane so the arm follows the same direction you move.
+          const s = state.scale;
+          const f = state.invert ? -1 : 1;
+          const p = it.pos;
+          state.target.set(
+            HOME.x + p.x * s * f,
+            HOME.y + p.y * s,
+            HOME.z + p.z * s * f
+          );
+        }
         const ik = solveIK(
           state.target.x,
           state.target.y,

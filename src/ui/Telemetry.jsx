@@ -35,7 +35,12 @@ export default function Telemetry({
   onStabilize,
   invert,
   onInvert,
+  mode,
+  onMode,
+  reach,
+  onReach,
 }) {
+  const aim = mode === "aim";
   const d = t || {
     quat: [0, 0, 0, 1],
     acc: [0, 0, 0],
@@ -111,22 +116,35 @@ export default function Telemetry({
           flexWrap: "wrap",
         }}
       >
+        <button
+          onClick={onMode}
+          style={btn(aim)}
+          title="AIM: point the phone, slider sets reach. MOVE: integrated position."
+        >
+          {aim ? "MODE: AIM" : "MODE: MOVE"}
+        </button>
         <button onClick={onHold} style={btn(paused)}>
           {paused ? "▶ RESUME" : "❚❚ HOLD"}
         </button>
-        <button onClick={onRecenter} style={btn(false)}>
-          RECENTER
-        </button>
-        <button
-          onClick={onStabilize}
-          style={btn(!stabilize)}
-          title="Off = no auto-return; you zero manually with RECENTER"
-        >
-          {stabilize ? "DRIFT-STOP: ON" : "DRIFT-STOP: OFF"}
-        </button>
-        <button onClick={onInvert} style={btn(invert)}>
-          {invert ? "INVERT: ON" : "INVERT: OFF"}
-        </button>
+        {!aim && (
+          <button onClick={onRecenter} style={btn(false)}>
+            RECENTER
+          </button>
+        )}
+        {!aim && (
+          <button
+            onClick={onStabilize}
+            style={btn(!stabilize)}
+            title="Off = no auto-return; you zero manually with RECENTER"
+          >
+            {stabilize ? "DRIFT-STOP: ON" : "DRIFT-STOP: OFF"}
+          </button>
+        )}
+        {!aim && (
+          <button onClick={onInvert} style={btn(invert)}>
+            {invert ? "INVERT: ON" : "INVERT: OFF"}
+          </button>
+        )}
         <button onClick={onResetView} style={btn(false)}>
           RESET VIEW
         </button>
@@ -139,16 +157,33 @@ export default function Telemetry({
             marginLeft: "auto",
           }}
         >
-          SCALE ×<span>{scale}</span>
-          <input
-            type="range"
-            min="1"
-            max="15"
-            step="1"
-            value={scale}
-            onChange={(e) => onScale(+e.target.value)}
-            style={{ accentColor: C.accent }}
-          />
+          {aim ? (
+            <>
+              REACH <span>{reach.toFixed(1)}m</span>
+              <input
+                type="range"
+                min="0.3"
+                max="2.6"
+                step="0.05"
+                value={reach}
+                onChange={(e) => onReach(+e.target.value)}
+                style={{ accentColor: C.accent }}
+              />
+            </>
+          ) : (
+            <>
+              SCALE ×<span>{scale}</span>
+              <input
+                type="range"
+                min="1"
+                max="15"
+                step="1"
+                value={scale}
+                onChange={(e) => onScale(+e.target.value)}
+                style={{ accentColor: C.accent }}
+              />
+            </>
+          )}
         </label>
       </div>
       <div
