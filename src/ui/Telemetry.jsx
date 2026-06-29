@@ -31,6 +31,10 @@ export default function Telemetry({
   paused,
   onHold,
   onResetView,
+  stabilize,
+  onStabilize,
+  invert,
+  onInvert,
 }) {
   const d = t || {
     quat: [0, 0, 0, 1],
@@ -112,6 +116,16 @@ export default function Telemetry({
         </button>
         <button onClick={onRecenter} style={btn(false)}>
           RECENTER
+        </button>
+        <button
+          onClick={onStabilize}
+          style={btn(!stabilize)}
+          title="Off = no auto-return; you zero manually with RECENTER"
+        >
+          {stabilize ? "DRIFT-STOP: ON" : "DRIFT-STOP: OFF"}
+        </button>
+        <button onClick={onInvert} style={btn(invert)}>
+          {invert ? "INVERT: ON" : "INVERT: OFF"}
         </button>
         <button onClick={onResetView} style={btn(false)}>
           RESET VIEW

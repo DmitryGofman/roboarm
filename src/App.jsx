@@ -77,6 +77,8 @@ export default function App() {
       scale: 6,
       live: false,
       paused: false,
+      stabilize: true,
+      invert: false,
       hasData: false,
     }),
     []
@@ -86,6 +88,8 @@ export default function App() {
   const [scale, setScaleState] = useState(6);
   const [live, setLive] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [stabilize, setStabilize] = useState(true);
+  const [invert, setInvert] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [msg, setMsg] = useState("");
 
@@ -109,6 +113,18 @@ export default function App() {
     const v = !paused;
     state.paused = v;
     setPaused(v);
+  };
+
+  const onStabilize = () => {
+    const v = !stabilize;
+    state.stabilize = v;
+    setStabilize(v);
+  };
+
+  const onInvert = () => {
+    const v = !invert;
+    state.invert = v;
+    setInvert(v);
   };
 
   const onResetView = () => state.resetView?.();
@@ -270,6 +286,10 @@ export default function App() {
           paused={paused}
           onHold={onHold}
           onResetView={onResetView}
+          stabilize={stabilize}
+          onStabilize={onStabilize}
+          invert={invert}
+          onInvert={onInvert}
         />
       )}
     </>

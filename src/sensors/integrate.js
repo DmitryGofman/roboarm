@@ -42,7 +42,10 @@ export function createIntegrator() {
   // Advance the position estimate from one DeviceMotion event.
   // Returns the high-passed world-frame acceleration, or null if the event
   // carried no usable acceleration data.
-  function step(e) {
+  // stabilize=true: ZUPT + velocity decay keep drift bounded but also bleed
+  // real motion back toward home. stabilize=false: free integration that holds
+  // wherever you move it (you zero manually) — driftier, but no auto-return.
+  function step(e, stabilize = true) {
     const dt = e.interval && e.interval > 0 ? e.interval : 1 / 60;
     let ax, ay, az;
     if (e.acceleration && e.acceleration.x != null) {
@@ -74,11 +77,11 @@ export function createIntegrator() {
       : 0;
     const isStill = accW.length() < 0.18 && rot < 8;
     still = isStill ? still + 1 : 0;
-    if (still > 6) {
+    if (stabilize && still > 6) {
       vel.multiplyScalar(0); // ZUPT
     } else {
       vel.addScaledVector(accW, dt);
-      vel.multiplyScalar(0.96);
+      if (stabilize) vel.multiplyScalar(0.96); // decay (only when stabilizing)
       pos.addScaledVector(vel, dt);
     }
     return accW;

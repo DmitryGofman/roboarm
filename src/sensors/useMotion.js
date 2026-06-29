@@ -56,10 +56,19 @@ export function useMotion(state, onTelemetry) {
           return;
         }
 
-        const accW = it.step(e);
+        const accW = it.step(e, state.stabilize !== false);
         if (!accW) return;
 
-        state.target.copy(HOME).add(it.pos.clone().multiplyScalar(state.scale));
+        // map integrated phone displacement to the IK target. INVERT flips the
+        // horizontal plane so the arm follows the same direction you move.
+        const s = state.scale;
+        const f = state.invert ? -1 : 1;
+        const p = it.pos;
+        state.target.set(
+          HOME.x + p.x * s * f,
+          HOME.y + p.y * s,
+          HOME.z + p.z * s * f
+        );
         const ik = solveIK(
           state.target.x,
           state.target.y,
