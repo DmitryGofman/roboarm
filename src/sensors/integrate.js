@@ -18,10 +18,21 @@ export function createIntegrator() {
   const pos = new THREE.Vector3();
   const hp = new THREE.Vector3(); // high-pass running mean of world accel
   let still = 0;
+  let heading = null; // compass heading, degrees clockwise from north (0 = N)
 
-  // device Euler -> quaternion (the reliable signal; trusted almost fully)
+  // device Euler -> quaternion (the reliable signal; trusted almost fully).
+  // When a magnetometer-backed compass heading is available (iOS
+  // webkitCompassHeading, or an absolute-orientation alpha) we use it for the
+  // yaw so the base rotation is north-referenced and free of gyro yaw drift.
   function setOrientation(e) {
-    const a = ((e.alpha || 0) * Math.PI) / 180;
+    let aDeg = e.alpha || 0;
+    if (e.webkitCompassHeading != null) {
+      heading = e.webkitCompassHeading; // iOS: absolute, magnetometer-fused
+      aDeg = 360 - e.webkitCompassHeading; // back into the alpha convention
+    } else if (e.absolute === true && e.alpha != null) {
+      heading = (360 - e.alpha) % 360; // Android absolute orientation
+    }
+    const a = (aDeg * Math.PI) / 180;
     const b = ((e.beta || 0) * Math.PI) / 180;
     const g = ((e.gamma || 0) * Math.PI) / 180;
     quat.setFromEuler(new THREE.Euler(b, a, -g, "YXZ"));
@@ -97,6 +108,9 @@ export function createIntegrator() {
     },
     get zupt() {
       return still > 6;
+    },
+    get heading() {
+      return heading;
     },
   };
 }

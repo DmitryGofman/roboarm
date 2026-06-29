@@ -10,6 +10,9 @@ const C = {
 
 const fmt = (arr) => arr.map((n) => +n.toFixed(2)).join(" ");
 
+const POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const compassPoint = (deg) => POINTS[Math.round((deg % 360) / 45) % 8];
+
 function Row({ label, value, color }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -55,11 +58,20 @@ export default function Telemetry({
   return (
     <div
       style={{
+        // pinned to the visible bottom edge so iOS Safari's toolbar / dynamic
+        // viewport can't push it off-screen; scrolls if it ever gets tall.
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 5,
+        maxHeight: "62vh",
+        overflowY: "auto",
         pointerEvents: "auto",
         borderTop: `1px solid ${C.line}`,
         background: C.panel,
         padding: "10px 14px",
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
         fontSize: 11,
       }}
     >
@@ -145,6 +157,13 @@ export default function Telemetry({
           label="IK"
           value={d.reachable ? "SOLVED" : "NO SOLUTION"}
           color={d.reachable ? C.good : C.warn}
+        />
+        <Row
+          label="HEADING"
+          value={
+            d.heading == null ? "no compass" : `${Math.round(d.heading)}° ${compassPoint(d.heading)}`
+          }
+          color={d.heading == null ? C.dim : C.txt}
         />
       </div>
       <div style={{ marginTop: 6, color: C.dim }}>

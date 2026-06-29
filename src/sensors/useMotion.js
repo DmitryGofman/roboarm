@@ -50,6 +50,7 @@ export function useMotion(state, onTelemetry) {
             angles: state.angles,
             samples: samples.current,
             hz,
+            heading: it.heading,
             paused: true,
           });
           return;
@@ -87,6 +88,7 @@ export function useMotion(state, onTelemetry) {
           angles: ik.angles,
           samples: samples.current,
           hz,
+          heading: it.heading,
         });
       },
     };
