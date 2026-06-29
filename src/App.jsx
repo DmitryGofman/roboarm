@@ -1,9 +1,12 @@
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { JOINTS } from "./robot/spec.js";
+import { JOINTS, MAXREACH } from "./robot/spec.js";
+import { solveIK } from "./robot/kinematics.js";
 import RobotArm from "./robot/RobotArm.jsx";
 import Telemetry from "./ui/Telemetry.jsx";
 import { useMotion } from "./sensors/useMotion.js";
+import CameraBackground from "./ar/CameraBackground.jsx";
+import { useHandTracker } from "./ar/useHandTracker.js";
 
 const C = {
   panel: "#0f1620",
@@ -31,6 +34,7 @@ export default function App() {
       mode: "aim", // "aim" (orientation + reach) | "move" (integrated position)
       reach: 1.6, // metres along the aim vector
       aimDir: new THREE.Vector3(1, 0, 0),
+      ar: false, // camera/hand-tracking AR mode
       hasData: false,
     }),
     []
@@ -45,6 +49,8 @@ export default function App() {
   const [mode, setMode] = useState("aim");
   const [reach, setReachState] = useState(1.6);
   const [acousticOn, setAcousticOn] = useState(false);
+  const [arOn, setArOn] = useState(false);
+  const [handPresent, setHandPresent] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [msg, setMsg] = useState("");
 
@@ -58,6 +64,64 @@ export default function App() {
   };
 
   const { start, recenter, toggleAcoustic } = useMotion(state, onTelemetry);
+
+  // ---- AR: camera hand-tracking drives the arm ----
+  // map a normalized hand position -> aim direction + reach -> IK -> arm.
+  const HAND_YAW = THREE.MathUtils.degToRad(70); // left/right swing
+  const HAND_PITCH = THREE.MathUtils.degToRad(55); // up/down swing
+  const handPresentRef = useRef(false);
+  const onHand = (h) => {
+    if (!h.present) {
+      if (handPresentRef.current) {
+        handPresentRef.current = false;
+        setHandPresent(false);
+      }
+      return;
+    }
+    if (!handPresentRef.current) {
+      handPresentRef.current = true;
+      setHandPresent(true);
+    }
+    // rear camera is not mirrored; image x grows to the right, y grows downward
+    const yaw = (h.x - 0.5) * 2 * HAND_YAW;
+    const pitch = -(h.y - 0.5) * 2 * HAND_PITCH;
+    const dir = state.aimDir.set(
+      Math.cos(pitch) * Math.cos(yaw),
+      Math.sin(pitch),
+      Math.cos(pitch) * Math.sin(yaw)
+    );
+    // hand size (closer hand = bigger) -> reach along the ray
+    const reachM = THREE.MathUtils.clamp(
+      THREE.MathUtils.mapLinear(h.size, 0.08, 0.34, 0.8, MAXREACH),
+      0.6,
+      MAXREACH
+    );
+    state.target.copy(dir).multiplyScalar(reachM);
+    const ik = solveIK(state.target.x, state.target.y, state.target.z, state.angles);
+    state.angles = ik.angles;
+  };
+  const tracker = useHandTracker(onHand);
+
+  const onCamReady = async (video) => {
+    const m = await tracker.start(video);
+    if (m) setMsg(m);
+  };
+  const onCamError = (e) => {
+    // fall back to the existing (non-camera) mode
+    state.ar = false;
+    setArOn(false);
+    setMsg("Camera unavailable — using sensor mode. " + (e?.message || ""));
+  };
+  const onAR = () => {
+    const v = !arOn;
+    state.ar = v;
+    setArOn(v);
+    setMsg("");
+    if (!v) {
+      tracker.stop();
+      setHandPresent(false);
+    }
+  };
 
   const onScale = (v) => {
     state.scale = v;
@@ -112,7 +176,33 @@ export default function App() {
 
   return (
     <>
+      {arOn && (
+        <CameraBackground
+          facingMode="environment"
+          onReady={onCamReady}
+          onError={onCamError}
+        />
+      )}
+
       <RobotArm state={state} />
+
+      {/* center reticle (AR aiming) */}
+      {arOn && (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%,-50%)",
+            width: 18,
+            height: 18,
+            border: `2px solid ${handPresent ? C.good : C.txt}`,
+            borderRadius: "50%",
+            boxShadow: `0 0 8px ${handPresent ? C.good : "transparent"}`,
+            pointerEvents: "none",
+          }}
+        />
+      )}
 
       {/* header */}
       <div
@@ -266,6 +356,9 @@ export default function App() {
           onReach={onReach}
           acousticOn={acousticOn}
           onAcoustic={onAcoustic}
+          arOn={arOn}
+          onAR={onAR}
+          handPresent={handPresent}
         />
       )}
     </>

@@ -75,6 +75,26 @@ export function useMotion(state, onTelemetry) {
         const accW = it.step(e, state.stabilize !== false);
         if (!accW) return;
 
+        // AR mode: the camera hand-tracker drives the arm, not the IMU. Keep the
+        // orientation/telemetry alive but don't fight it for state.angles.
+        if (state.ar) {
+          const hz = e.interval && e.interval > 0 ? Math.round(1 / e.interval) : 0;
+          onTeleRef.current?.({
+            quat: it.quat.toArray(),
+            acc: accW.toArray(),
+            vel: it.vel.toArray(),
+            pos: it.pos.toArray(),
+            zupt: it.zupt,
+            reachable: true,
+            angles: state.angles,
+            samples: samples.current,
+            hz,
+            heading: it.heading,
+            acoustic: acMotion,
+          });
+          return;
+        }
+
         if (state.mode === "aim") {
           // AIM: phone orientation is a unit direction; the slider sets how far
           // along it the end-effector sits. Drift-free (orientation only).

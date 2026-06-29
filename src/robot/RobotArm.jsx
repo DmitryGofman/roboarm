@@ -14,14 +14,17 @@ export default function RobotArm({ state }) {
     const mount = mountRef.current;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0c111a);
-    scene.fog = new THREE.Fog(0x0c111a, 10, 26);
+    const bgColor = new THREE.Color(0x0c111a);
+    const bgFog = new THREE.Fog(0x0c111a, 10, 26);
+    scene.background = bgColor;
+    scene.fog = bgFog;
 
     const cam = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     cam.position.set(4.6, 3.2, 5.6);
     cam.lookAt(0, 1.5, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // alpha:true so the canvas can be transparent over the camera feed (AR)
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     mount.appendChild(renderer.domElement);
     Object.assign(renderer.domElement.style, { position: "absolute", inset: "0" });
@@ -52,7 +55,8 @@ export default function RobotArm({ state }) {
     rim.position.set(0, 3, -6);
     scene.add(rim);
 
-    scene.add(new THREE.GridHelper(18, 36, 0x2a3d52, 0x18222e));
+    const grid = new THREE.GridHelper(18, 36, 0x2a3d52, 0x18222e);
+    scene.add(grid);
     const env = new THREE.Mesh(
       new THREE.SphereGeometry(MAXREACH, 28, 18),
       new THREE.MeshBasicMaterial({
@@ -221,8 +225,20 @@ export default function RobotArm({ state }) {
         const tip = state.aimDir.clone().multiplyScalar(MAXREACH).add(off);
         rayGeom.setFromPoints([off, tip]);
       }
-      // gentle auto-orbit until live, so the arm is clearly visible on load
-      controls.autoRotate = !state.live;
+      // AR: transparent canvas over the camera feed; hide the dark backdrop
+      if (state.ar) {
+        scene.background = null;
+        scene.fog = null;
+        grid.visible = false;
+        renderer.setClearColor(0x000000, 0);
+      } else {
+        scene.background = bgColor;
+        scene.fog = bgFog;
+        grid.visible = true;
+        renderer.setClearColor(0x000000, 1);
+      }
+      // gentle auto-orbit until live (skip in AR — hand drives it)
+      controls.autoRotate = !state.live && !state.ar;
       controls.update();
       renderer.render(scene, cam);
     }

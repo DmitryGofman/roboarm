@@ -41,6 +41,9 @@ export default function Telemetry({
   onReach,
   acousticOn,
   onAcoustic,
+  arOn,
+  onAR,
+  handPresent,
 }) {
   const aim = mode === "aim";
   const d = t || {
@@ -118,6 +121,13 @@ export default function Telemetry({
           flexWrap: "wrap",
         }}
       >
+        <button
+          onClick={onAR}
+          style={btn(arOn)}
+          title="AR: live camera + hand tracking drives the arm (asks for camera)"
+        >
+          {arOn ? "📷 AR: ON" : "📷 AR"}
+        </button>
         <button
           onClick={onMode}
           style={btn(aim)}
@@ -232,6 +242,13 @@ export default function Telemetry({
           }
           color={d.acoustic == null ? C.dim : d.acoustic < 0.12 ? C.good : C.accent}
         />
+        {arOn && (
+          <Row
+            label="HAND"
+            value={handPresent ? "tracking" : "none"}
+            color={handPresent ? C.good : C.warn}
+          />
+        )}
       </div>
       <div style={{ marginTop: 6, color: C.dim }}>
         JOINTS°{"  "}
