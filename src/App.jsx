@@ -35,6 +35,7 @@ export default function App() {
       reach: 1.6, // metres along the aim vector
       aimDir: new THREE.Vector3(1, 0, 0),
       ar: false, // camera/hand-tracking AR mode
+      armVisible: true, // false = "blob" mode (just the point follows the finger)
       hasData: false,
     }),
     []
@@ -51,6 +52,8 @@ export default function App() {
   const [acousticOn, setAcousticOn] = useState(false);
   const [arOn, setArOn] = useState(false);
   const [handPresent, setHandPresent] = useState(false);
+  const [camFacing, setCamFacing] = useState("environment");
+  const [armVisible, setArmVisible] = useState(true);
   const [panelOpen, setPanelOpen] = useState(true);
   const [msg, setMsg] = useState("");
 
@@ -65,11 +68,11 @@ export default function App() {
 
   const { start, recenter, toggleAcoustic } = useMotion(state, onTelemetry);
 
-  // ---- AR: camera hand-tracking drives the arm ----
-  // map a normalized hand position -> aim direction + reach -> IK -> arm.
+  // ---- AR: camera hand-tracking drives the arm / point ----
   const HAND_YAW = THREE.MathUtils.degToRad(70); // left/right swing
   const HAND_PITCH = THREE.MathUtils.degToRad(55); // up/down swing
   const handPresentRef = useRef(false);
+  const camFacingRef = useRef("environment");
   const onHand = (h) => {
     if (!h.present) {
       if (handPresentRef.current) {
@@ -82,19 +85,39 @@ export default function App() {
       handPresentRef.current = true;
       setHandPresent(true);
     }
-    // rear camera is not mirrored; image x grows to the right, y grows downward
-    const yaw = (h.x - 0.5) * 2 * HAND_YAW;
+    // front (selfie) camera is mirrored on screen -> un-mirror the x axis
+    const fx = camFacingRef.current === "user" ? 1 - h.x : h.x;
+
+    if (state.armVisible === false) {
+      // BLOB mode: the fingertip moves a free point in 3D INSIDE the sphere.
+      // x/y from the fingertip, depth from hand size (closer hand = nearer).
+      const R = MAXREACH;
+      const depth = THREE.MathUtils.mapLinear(
+        THREE.MathUtils.clamp(h.size, 0.08, 0.34),
+        0.08,
+        0.34,
+        -R,
+        R
+      );
+      const p = state.target.set((fx - 0.5) * 2 * R, -(h.y - 0.5) * 2 * R, depth);
+      if (p.length() > R) p.setLength(R); // constrain to the sphere
+      return;
+    }
+
+    // ARM mode: fingertip -> aim direction, hand size -> reach -> IK.
+    const yaw = (fx - 0.5) * 2 * HAND_YAW;
     const pitch = -(h.y - 0.5) * 2 * HAND_PITCH;
-    const dir = state.aimDir.set(
-      Math.cos(pitch) * Math.cos(yaw),
-      Math.sin(pitch),
-      Math.cos(pitch) * Math.sin(yaw)
-    );
-    // hand size (closer hand = bigger) -> reach along the ray
+    const dir = state.aimDir
+      .set(
+        Math.cos(pitch) * Math.cos(yaw),
+        Math.sin(pitch),
+        Math.cos(pitch) * Math.sin(yaw)
+      )
+      .normalize();
     const reachM = THREE.MathUtils.clamp(
       THREE.MathUtils.mapLinear(h.size, 0.08, 0.34, 0.8, MAXREACH),
       0.6,
-      MAXREACH
+      MAXREACH // never command past the physical reach envelope
     );
     state.target.copy(dir).multiplyScalar(reachM);
     const ik = solveIK(state.target.x, state.target.y, state.target.z, state.angles);
@@ -121,6 +144,18 @@ export default function App() {
       tracker.stop();
       setHandPresent(false);
     }
+  };
+
+  const onFlipCam = () => {
+    const v = camFacing === "environment" ? "user" : "environment";
+    camFacingRef.current = v;
+    setCamFacing(v); // remounts CameraBackground (facingMode dep) -> onCamReady restarts tracker
+  };
+
+  const onToggleArm = () => {
+    const v = !armVisible;
+    state.armVisible = v;
+    setArmVisible(v);
   };
 
   const onScale = (v) => {
@@ -178,7 +213,8 @@ export default function App() {
     <>
       {arOn && (
         <CameraBackground
-          facingMode="environment"
+          facingMode={camFacing}
+          mirror={camFacing === "user"}
           onReady={onCamReady}
           onError={onCamError}
         />
@@ -359,6 +395,10 @@ export default function App() {
           arOn={arOn}
           onAR={onAR}
           handPresent={handPresent}
+          camFacing={camFacing}
+          onFlipCam={onFlipCam}
+          armVisible={armVisible}
+          onToggleArm={onToggleArm}
         />
       )}
     </>

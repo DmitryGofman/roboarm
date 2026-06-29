@@ -44,6 +44,10 @@ export default function Telemetry({
   arOn,
   onAR,
   handPresent,
+  camFacing,
+  onFlipCam,
+  armVisible,
+  onToggleArm,
 }) {
   const aim = mode === "aim";
   const d = t || {
@@ -128,6 +132,20 @@ export default function Telemetry({
         >
           {arOn ? "📷 AR: ON" : "📷 AR"}
         </button>
+        {arOn && (
+          <button onClick={onFlipCam} style={btn(false)} title="Switch front / back camera">
+            {camFacing === "user" ? "CAM: FRONT" : "CAM: BACK"}
+          </button>
+        )}
+        {arOn && (
+          <button
+            onClick={onToggleArm}
+            style={btn(!armVisible)}
+            title="Hide the arm — just the point follows your finger in the sphere"
+          >
+            {armVisible ? "ARM: ON" : "BLOB ONLY"}
+          </button>
+        )}
         <button
           onClick={onMode}
           style={btn(aim)}

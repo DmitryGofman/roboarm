@@ -33,7 +33,8 @@ export function solveIK(tx, ty, tz, prevAngles) {
   const a1 = clampDeg(Math.atan2(tz, -tx) * R2D, j[0]); // base yaw
 
   const R = Math.hypot(tx, tz); // horizontal distance from shoulder
-  const y = ty; // height relative to the shoulder pivot
+  // floor constraint: never command the tip below the ground plane (world y≈0)
+  const y = Math.max(ty, -KIN.shoulderY + 0.15); // height relative to shoulder
   const withinReach = Math.hypot(R, y) <= L1 + L2;
 
   // try both elbow configurations; prefer one whose joints are in range

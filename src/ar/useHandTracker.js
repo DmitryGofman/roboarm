@@ -31,6 +31,7 @@ export function useHandTracker(onResult) {
       return "Hand tracking failed to load: " + (e.message || e);
     }
 
+    cancelAnimationFrame(s.raf); // avoid stacking loops on camera flip / restart
     s.running = true;
     let lastTs = -1;
     const loop = () => {
@@ -49,10 +50,11 @@ export function useHandTracker(onResult) {
       }
       const lm = res?.landmarks?.[0];
       if (lm && lm.length >= 13) {
-        const palm = lm[9]; // middle-finger MCP ≈ palm center
+        const tip = lm[8]; // index fingertip — the pointing finger
         const wrist = lm[0];
-        const size = Math.hypot(palm.x - wrist.x, palm.y - wrist.y);
-        onResult({ x: palm.x, y: palm.y, size, present: true });
+        const midMcp = lm[9]; // stable hand-scale span (depth proxy)
+        const size = Math.hypot(midMcp.x - wrist.x, midMcp.y - wrist.y);
+        onResult({ x: tip.x, y: tip.y, z: tip.z ?? 0, size, present: true });
       } else {
         onResult({ present: false });
       }

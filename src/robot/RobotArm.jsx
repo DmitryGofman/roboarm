@@ -202,9 +202,18 @@ export default function RobotArm({ state }) {
     resize();
 
     let raf = 0;
+    let wasAr = false;
     const off = new THREE.Vector3(0, KIN.shoulderY, 0);
     function tick() {
       raf = requestAnimationFrame(tick);
+      // entering AR: snap to a front-on view centred on the sphere so the
+      // camera image and the point/sphere line up
+      if (state.ar && !wasAr) {
+        cam.position.set(0, KIN.shoulderY, 6.8);
+        controls.target.set(0, KIN.shoulderY, 0);
+        controls.update();
+      }
+      wasAr = state.ar;
       const a = state.angles;
       J[0].rotation.y = d2r(a[0]);
       J[1].rotation.z = d2r(a[1]);
@@ -212,16 +221,27 @@ export default function RobotArm({ state }) {
       J[3].rotation.y = d2r(a[3]);
       J[4].rotation.z = d2r(a[4]);
       J[5].rotation.y = d2r(a[5]);
-      // green dot = the ACTUAL flange (end-effector), read from the posed model,
-      // so it always sits exactly on the arm tip regardless of IK reach limits.
-      j6.getWorldPosition(target.position);
+
+      const blob = state.armVisible === false; // arm hidden, free point follows finger
+      j1.visible = !blob;
+      baseGrp.visible = !blob;
+      // sphere reads brighter when it's the main guide (blob mode)
+      env.material.opacity = blob ? 0.16 : 0.07;
+
+      if (blob) {
+        // green dot = the free 3D point (already constrained to the sphere)
+        target.position.copy(state.target).add(off);
+      } else {
+        // green dot = the ACTUAL flange (end-effector), read from the posed model
+        j6.getWorldPosition(target.position);
+      }
       const aim = state.mode === "aim";
       // ghost (phone) is meaningful in MOVE mode; the aim ray replaces it in AIM
-      ghost.visible = !aim;
+      ghost.visible = !aim && !blob;
       ghost.position.copy(state.target).add(off);
       if (state.quat) ghost.quaternion.copy(state.quat);
-      aimRay.visible = aim;
-      if (aim && state.aimDir) {
+      aimRay.visible = aim && !blob;
+      if (aim && !blob && state.aimDir) {
         const tip = state.aimDir.clone().multiplyScalar(MAXREACH).add(off);
         rayGeom.setFromPoints([off, tip]);
       }
